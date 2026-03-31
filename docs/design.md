@@ -1,18 +1,54 @@
 秒杀系统设计文档
 
-1. 架构设计
-系统采用微服务架构思想，将业务拆分为四个核心服务：
-用户服务：处理鉴权与信息管理。
-商品服务：管理秒杀商品列表与详情。
-订单服务：处理秒杀下单逻辑。
-库存服务：负责高并发下的库存扣减。
 
-2. API 接口定义 (RESTful)
-POST /api/user/login : 用户登录
-GET /api/product/list : 获取秒杀商品列表
-POST /api/seckill/execute : 执行秒杀下单
 
-3. 数据库设计
-user 表: id, username, password
-product 表: id, name, price, stock
-order 表: id, user_id, product_id, status
+系统架构：
+
+用户服务 ：负责用户鉴权、登录与注册。
+
+商品服务 ：维护秒杀商品信息、价格及详情。
+
+订单服务 ：处理下单逻辑及订单状态流转。
+
+库存服务 ：高并发下的库存校验与扣减。
+
+
+
+各服务 API 接口定义 (RESTful)
+
+模块           接口地址           请求方式         功能描述
+
+用户      /api/user/login        POST          用户登录认证
+
+商品      /api/product/{id}      GET         获取指定商品详情
+
+订单      /api/order/create     POST        创建秒杀订单
+
+库存      /api/stock/reduce     POST        扣减商品库存
+
+
+
+数据库 ER 图表结构：
+
+用户表 (user): id, username, password, phone
+
+商品表 (product): id, name, price, description
+
+库存表 (stock): product\_id, stock\_count
+
+订单表 (order): id, user\_id, product\_id, create\_time, status
+
+
+
+技术栈选型说明
+
+编程语言: Java 
+
+基础框架: Spring Boot 3.x
+
+持久层框架: MyBatis Plus
+
+数据库: MySQL 8.0
+
+中间件: Redis 
+
