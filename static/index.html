@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>秒杀系统演示页</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #f4f7fb, #dfe9f3);
+            color: #1f2937;
+        }
+        .wrap {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 28px 20px 40px;
+        }
+        h1 {
+            margin: 0 0 10px;
+        }
+        .desc {
+            color: #475569;
+            line-height: 1.8;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-top: 24px;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.92);
+            border-radius: 18px;
+            padding: 18px;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        }
+        input, button {
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 10px;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            padding: 10px 12px;
+            font-size: 14px;
+        }
+        button {
+            background: #0f766e;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #115e59;
+        }
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 12px;
+            padding: 14px;
+            min-height: 180px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <h1>秒杀系统前端演示页</h1>
+    <div class="desc">
+        这个页面由 Nginx 直接返回，接口统一走 /api 转发到后端实例。可以演示动静分离、负载均衡、读写分离、商品搜索以及 Kafka 异步秒杀下单。
+    </div>
+    <div class="grid">
+        <div class="card">
+            <h3>注册与登录</h3>
+            <input id="registerUsername" placeholder="注册用户名">
+            <input id="registerPassword" placeholder="注册密码，至少6位">
+            <input id="registerPhone" placeholder="注册手机号">
+            <button onclick="registerUser()">注册</button>
+            <input id="loginUsername" placeholder="登录用户名" value="admin">
+            <input id="loginPassword" placeholder="登录密码" value="123123">
+            <button onclick="loginUser()">登录</button>
+        </div>
+        <div class="card">
+            <h3>商品查询</h3>
+            <input id="productId" placeholder="商品ID" value="1">
+            <button onclick="loadProduct()">查商品详情</button>
+            <input id="keyword" placeholder="搜索关键词" value="手机">
+            <button onclick="searchProduct()">商品搜索</button>
+        </div>
+        <div class="card">
+            <h3>普通下单</h3>
+            <input id="orderUserId" placeholder="用户ID" value="1">
+            <input id="orderProductId" placeholder="商品ID" value="2">
+            <input id="orderAmount" placeholder="购买数量" value="1">
+            <button onclick="createOrder()">普通下单</button>
+            <input id="queryOrderId" placeholder="订单ID">
+            <button onclick="queryOrder()">按订单ID查询</button>
+        </div>
+        <div class="card">
+            <h3>秒杀与查询</h3>
+            <input id="seckillUserId" placeholder="秒杀用户ID" value="2">
+            <input id="seckillProductId" placeholder="秒杀商品ID" value="1">
+            <button onclick="submitSeckill()">提交秒杀</button>
+            <input id="statusOrderId" placeholder="秒杀返回的订单ID">
+            <button onclick="querySeckillStatus()">查秒杀状态</button>
+            <button onclick="queryUserOrders()">查用户订单</button>
+        </div>
+        <div class="card">
+            <h3>系统演示</h3>
+            <div class="row">
+                <button onclick="checkPing()">当前实例</button>
+                <button onclick="checkReadDb()">读库信息</button>
+            </div>
+            <div class="row">
+                <button onclick="checkWriteDb()">写库信息</button>
+                <button onclick="loadProduct()">触发缓存查询</button>
+            </div>
+        </div>
+        <div class="card">
+            <h3>分布式事务</h3>
+            <input id="txUserId" placeholder="事务用户ID" value="3">
+            <input id="txProductId" placeholder="事务商品ID" value="1">
+            <button onclick="submitTxSeckill()">事务秒杀下单</button>
+            <input id="txOrderId" placeholder="事务订单ID">
+            <div class="row">
+                <button onclick="queryTxOrder()">事务详情</button>
+                <button onclick="submitTxPay()">事务支付</button>
+            </div>
+            <button onclick="queryTxPayment()">支付记录</button>
+        </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+        <h3>返回结果</h3>
+        <pre id="output">等待请求...</pre>
+    </div>
+</div>
+<script>
+    async function request(url, options) {
+        const response = await fetch(url, options);
+        const data = await response.json();
+        document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+        return data;
+    }
+
+    function registerUser() {
+        request('/api/user/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: document.getElementById('registerUsername').value,
+                password: document.getElementById('registerPassword').value,
+                phone: document.getElementById('registerPhone').value
+            })
+        });
+    }
+
+    function loginUser() {
+        request('/api/user/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: document.getElementById('loginUsername').value,
+                password: document.getElementById('loginPassword').value
+            })
+        });
+    }
+
+    function loadProduct() {
+        const id = document.getElementById('productId').value || '1';
+        request('/api/product/' + id, { method: 'GET' });
+    }
+
+    function searchProduct() {
+        const keyword = encodeURIComponent(document.getElementById('keyword').value || '');
+        request('/api/product/search?keyword=' + keyword, { method: 'GET' });
+    }
+
+    function createOrder() {
+        request('/api/order/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: Number(document.getElementById('orderUserId').value || 1),
+                productId: Number(document.getElementById('orderProductId').value || 1),
+                amount: Number(document.getElementById('orderAmount').value || 1)
+            })
+        });
+    }
+
+    async function submitSeckill() {
+        const data = await request('/api/seckill/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: Number(document.getElementById('seckillUserId').value || 1),
+                productId: Number(document.getElementById('seckillProductId').value || 1)
+            })
+        });
+        if (data.success && data.data && data.data.orderId) {
+            document.getElementById('statusOrderId').value = data.data.orderId;
+        }
+    }
+
+    function querySeckillStatus() {
+        const orderId = document.getElementById('statusOrderId').value;
+        request('/api/seckill/status/' + orderId, { method: 'GET' });
+    }
+
+    function queryOrder() {
+        const orderId = document.getElementById('queryOrderId').value;
+        request('/api/order/' + orderId, { method: 'GET' });
+    }
+
+    function queryUserOrders() {
+        const userId = document.getElementById('seckillUserId').value || '1';
+        request('/api/order/user/' + userId, { method: 'GET' });
+    }
+
+    function checkPing() {
+        request('/api/system/ping', { method: 'GET' });
+    }
+
+    function checkReadDb() {
+        request('/api/system/db/read', { method: 'GET' });
+    }
+
+    function checkWriteDb() {
+        request('/api/system/db/write', { method: 'GET' });
+    }
+
+    async function submitTxSeckill() {
+        const data = await request('/api/tx/seckill/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: Number(document.getElementById('txUserId').value || 1),
+                productId: Number(document.getElementById('txProductId').value || 1)
+            })
+        });
+        if (data.success && data.data && data.data.orderId) {
+            document.getElementById('txOrderId').value = data.data.orderId;
+        }
+    }
+
+    function queryTxOrder() {
+        const orderId = document.getElementById('txOrderId').value;
+        request('/api/tx/order/' + orderId, { method: 'GET' });
+    }
+
+    function submitTxPay() {
+        request('/api/tx/pay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                orderId: Number(document.getElementById('txOrderId').value || 0),
+                userId: Number(document.getElementById('txUserId').value || 1)
+            })
+        });
+    }
+
+    function queryTxPayment() {
+        const orderId = document.getElementById('txOrderId').value;
+        request('/api/tx/payment/' + orderId, { method: 'GET' });
+    }
+</script>
+</body>
+</html>
